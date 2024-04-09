@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import jwt from "jsonwebtoken"
 
 const generateAccessAndRefreshToken = async(userId)=>{
    try {
@@ -179,11 +180,70 @@ const logoutUser = asyncHandler(async(req, res)=>{
 
 })
 
-// todo 
-// logout, functionality , update account details, getuser , create middlware etc 
+const refreshAccessToken = asyncHandler(async(req, res)=>{
+    //get refreshtoken from req.cookies
+    //check wether incoming token is or not
+    //decode token using jwt verify
+    //find the user with decode token
+    //match user.refresh token with incoming refresh token
+    //generate another token
+
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if(!incomingRefreshToken){
+        throw new ApiError(401, "Unathorized request")
+    }
+
+    const decodeToken = jwt.verify(
+        incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET_KEY
+    )
+    const user = await User.findById(decodeToken?._id)
+
+    if(!user){
+        throw new ApiError(401, "Invalid refreshToken")
+    }
+
+    if(incomingRefreshToken !== user?.refreshToken){
+        throw new ApiError(401, "Refresh Token is expired or used")
+    }
+
+    const options = {
+        httpOnly:true,
+        secure:true
+    }
+
+    const {accessToken, newRefreshToken} = await generateAccessAndRefreshToken(user._id)
+
+    return res.send(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", newRefreshToken, options )
+    .json(
+        new ApiResponse(200, 
+            {accessToken, 
+            refreshToken:newRefreshToken
+            }, 
+            "Access Token refreshed")
+    )
+
+})
+
+const getUser = asyncHandler(async(req, res)=>{
+    //get user id from req.user
+    // select password and resfresh token
+
+   const user =  await User.findById(req.user?._id).select("-password -refreshToken")
+
+   return res.status(200).
+   json(
+    new ApiResponse(200, user, "User data fetched Successfully")
+   )
+})
+
 
 export {
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshAccessToken,
+    getUser 
 }
