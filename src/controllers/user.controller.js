@@ -214,7 +214,7 @@ const refreshAccessToken = asyncHandler(async(req, res)=>{
 
     const {accessToken, newRefreshToken} = await generateAccessAndRefreshToken(user._id)
 
-    return res.send(200)
+    return res.status(200)
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", newRefreshToken, options )
     .json(
@@ -239,11 +239,179 @@ const getUser = asyncHandler(async(req, res)=>{
    )
 })
 
+const updateAccountDetails = asyncHandler(async(req, res)=>{
+    //get data from : req.body
+    //check data field
+    //query update from User database
+    const { username, fullName, email} = req.body
+
+    if(!(username || email)){
+        throw new ApiError(400, "Username or email is required")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                username,
+                fullName,
+                email
+            }
+        },
+        {
+            new:true
+        }
+    ).select("-password -refresh")
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, user, "Account details update successfully")
+    )
+})
+
+const updatePassword = asyncHandler(async(req, res)=>{
+    //old and new password from user : req.body
+    //compare old password with existing password
+    //then update new password
+
+    const {oldPassword, newPassword, confirmPassword} = req.body
+    
+    const user = await User.findById(req.user?._id)
+
+    const validPassword = user.isPasswordCorrect(oldPassword)
+    if(!validPassword){
+        throw new ApiError("Old Password does not match with exisiting password")
+    }
+
+    if(newPassword !== confirmPassword){
+        throw new ApiError("New Password and confirm password does not match")
+    }
+
+    const changePassword = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                password:newPassword
+            }
+        }
+    ).select("-password -refreshToken")
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, changePassword, "Password change Successfully")
+    )    
+})
+
+const updateAvatar = asyncHandler(async(req, res)=>{
+    //check avtar is upload in multer or not
+    //then upload on cloudinary
+    //check wether file is uploaded or not on cloudinary
+    const avatarLocalFilePath = req.file
+
+    if(!avatarLocalFilePath){
+        throw new ApiError(400, "Avatar file is required")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalFilePath)
+    if(!avatar){
+        throw new ApiError(400, "Avatar file is required")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                avatar:avatar.url
+            }
+        },
+        {
+            new:true
+        }
+    ).select("-password -refreshToken")
+
+    if(!user){
+        throw new ApiError(500, "Something went wrong on server while uploading avatar")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, user, "Avatar update successfully")
+    )
+})
+
+const updateCoverImage = asyncHandler(async(req,res)=>{
+    //get image from multer
+    //check localcoverImageFile
+    //upload on Cloudinairy
+    //check file uploaded on cloudinary or not
+    //update in database
+
+    const coverImageLocalFilePath = req.file
+
+    if(!coverImageLocalFilePath){
+        throw new ApiError(400, "Cover Image File is required")
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalFilePath)
+
+    if(!coverImage){
+        throw new ApiError(400, "Cover Image file is required")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                coverImage: coverImage.url
+            }
+        }
+    ).select("-password -refreshToken")
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, user, "cover image update successfully")
+    )
+})
+
+const deleteUser = asyncHandler(async(req, res)=>{
+    //username and password -> req.body 
+    //verify password and username
+    //delete user from database
+
+    const {email, password} = req.body
+
+    const user = await User.findById(req.user?._id)
+    
+    if(email !== user.email){
+        throw new ApiError(400, "Email Does not match")
+    }
+
+    const validPassword = user.isPasswordCorrect(password)
+
+    if(!validPassword){
+        throw new ApiError(400, "Invalid credentials")
+    }
+
+    const userDelete = await User.findByIdAndDelete(
+        req.user?._id
+    )
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, {}, "User deleted Successfully")
+    )
+})
+
 
 export {
     registerUser,
     loginUser,
     logoutUser,
     refreshAccessToken,
-    getUser 
+    getUser,
+    updateAccountDetails,
+    updatePassword,
+    updateAvatar,
+    updateCoverImage,
+    deleteUser
 }
