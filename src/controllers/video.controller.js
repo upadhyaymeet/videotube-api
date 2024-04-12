@@ -8,6 +8,16 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import {Like} from "../models/like.model.js"
 import {Comment} from "../models/comment.model.js"
 
+const getAllVideos = asyncHandler(async(req, res)=>{
+    /*
+    1.get query for req.usery
+    2.set a variabel as pipeline
+    3.check query if is truthy value
+    4.push in pipleine one object with $search 
+
+    */
+})
+
 const publishAVideo = asyncHandler(async(req, res)=>{
     //description and title from body
     const {title, description} = req.body
@@ -73,6 +83,31 @@ const publishAVideo = asyncHandler(async(req, res)=>{
 })
 
 const getVideoById = asyncHandler(async(req, res)=>{
+    /*
+    1.Get video id from req.params
+    2.Check wether is valid object id or not with isValidObjectId
+    3.check user id is also with same as second step
+    4.then write a pipeline 
+    5.$match with a video id in video collection
+
+    //get likes from the likes collection
+    6.$lookup from "likes" collection which as "video" foregin field and _id as local field from video collection as "likes"
+   
+    // get the user information or owner information of the particular video
+    7.add one more lookup from "user" collection which as _id field and localfield as "owner" which is in vidoe collection and save as owner
+    8.then write to one more subpieline in lookup
+    9.lookup from "subscription" collection "channel" and _id field from "user" collection as "subscriber"
+    10.then add fields $subscribercount: and get count
+    11.then check wether channle is subscrber or not with condition
+    12.then project some value
+    13.username, avatar, subscribercount, isSubcriber
+    14.get back to main lookup
+    15.add fields likes count 
+    16.project some value videoFile, title, description, views, createAt, duration, comments, owner, likesCount, isLiked
+    17.after all this  increment views by 1
+    and update watchHistory of user
+    
+    */
     const { videoId } = req.params
 
     //check video id is valid object id 
@@ -342,5 +377,6 @@ export{
     getVideoById,
     updateVideoById,
     deleteVideo,
-    togglePublishStatus
+    togglePublishStatus,
+    getAllVideos
 }
